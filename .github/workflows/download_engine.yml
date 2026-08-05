@@ -1,0 +1,36 @@
+name: Cloud Downloader Engine
+
+on:
+  repository_dispatch:
+    types: [start_download]
+
+jobs:
+  download_and_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python & Tools
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies (yt-dlp & requests)
+        run: |
+          pip install yt-dlp requests
+
+      - name: Process & Download Link
+        env:
+          TARGET_URL: ${{ github.event.client_payload.url }}
+        run: |
+          echo "Starting download for: $TARGET_URL"
+          yt-dlp --output "downloaded_file.%(ext)s" "$TARGET_URL"
+          ls -la
+
+      - name: Create GitHub Release & Upload File
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: file-${{ github.run_number }}
+        run: |
+          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Auto-downloaded via GitCloud Bot. Will be deleted automatically."
