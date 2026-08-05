@@ -1,36 +1,79 @@
-name: Cloud Downloader Engine
+name: GitCloud Advanced Engine
 
 on:
   repository_dispatch:
     types: [start_download]
 
 jobs:
-  download_and_release:
+  process_download:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python & Tools
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install Dependencies (yt-dlp & requests)
+      - name: Set up Python & Aria2
         run: |
+          sudo apt-get update && sudo apt-get install -y aria2
           pip install yt-dlp requests
 
-      - name: Process & Download Link
+      - name: Smart Download (Direct Link / YouTube / Torrent / Magnet)
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
           echo "Starting download for: $TARGET_URL"
-          yt-dlp --output "downloaded_file.%(ext)s" "$TARGET_URL"
+          START_TIME=$(date +%s)
+          
+          # Check if it is a torrent/magnet or standard link/youtube
+          if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
+            echo "Downloading via Aria2 (Torrent/Magnet)..."
+            aria2c --seed-time=0 "$TARGET_URL"
+          else
+            echo "Downloading via yt-dlp / curl..."
+            yt-dlp --output "downloaded_file.%(ext)s" "$TARGET_URL" || curl -LJO "$TARGET_URL"
+          fi
+          
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "DURATION=$DURATION" >> $GITHUB_ENV
+          
+          # Get file size and name
+          FILE_SIZE=$(du -sh downloaded_file* 2>/dev/null | awk '{print $1}')
+          echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
+          
+          # Auto-splitting for files larger than 1.8GB
+          for f in downloaded_file*; do
+            if [ -f "$f" ]; then
+              FILE_SIZE_BYTES=$(stat -c%s "$f")
+              MAX_SIZE=$((1800 * 1024 * 1024)) # 1.8GB
+              if [ "$FILE_SIZE_BYTES" -gt "$MAX_SIZE" ]; then
+                echo "File is larger than 1.8GB. Splitting..."
+                split -b 1800m "$f" "${f}.part"
+                rm "$f"
+              fi
+            fi
+          done
+          
           ls -la
 
-      - name: Create GitHub Release & Upload File
+      - name: Create GitHub Release & Upload Files
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: file-${{ github.run_number }}
         run: |
-          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Auto-downloaded via GitCloud Bot. Will be deleted automatically."
+          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud Advanced Engine."
+          
+          # Get release asset download URL
+          ASSET_URL=$(gh release view "$TAG_NAME" --json assets --jq '.assets[0].url')
+          echo "DOWNLOAD_LINK=$ASSET_URL" >> $GITHUB_ENV
+
+      - name: Send Webhook Notification to Cloudflare Worker
+        env:
+          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          DURATION: ${{ env.DURATION }}
+          FILE_SIZE: ${{ env.FILE_SIZE }}
+          DOWNLOAD_LINK: ${{ env.DOWNLOAD_LINK }}
+        run: |
+          curl -s -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
