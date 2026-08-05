@@ -20,40 +20,55 @@
 
 ---
 
-<a name="english"></a>
-## 🇬🇧 English Documentation
+<a name="persian"></a>
+## 🇮🇷 راهنمای گام‌به‌گام راه‌اندازی و استفاده (Step-by-Step Guide)
 
-### 🚀 What is GitCloud?
-GitCloud is an advanced, serverless Telegram bot and GitHub Actions workflow system that allows you to use your personal GitHub repositories as free cloud storage (via GitHub Releases). Send any direct link, YouTube video, or Telegram file to the bot, and it automatically downloads and uploads it to your GitHub repo without consuming your server bandwidth.
+### گام اول: دریافت توکن گیت‌هاب (GitHub Personal Access Token)
+برای اینکه ربات بتواند ریپوها را برای شما بسازد و فایل‌ها را آپلود کند، به یک توکن دسترسی نیاز دارید:
+1. وارد حساب گیت‌هاب خود شوید و به مسیر زیر بروید:
+   `Settings` > `Developer settings` > `Personal access tokens` > `Tokens (classic)`
+2. روی **Generate new token (classic)** کلیک کنید.
+3. یک نام برای توکن خود بنویسید (مثلاً `GitCloudToken`).
+4. در بخش دسترسی‌ها (Scopes)، حتماً تیک گزینه‌های زیر را فعال کنید:
+   - `repo` (دسترسی کامل به ریپوها)
+   - `workflow` (دسترسی به گیت‌هاب اکشنز)
+5. روی دکمه **Generate token** در پایین صفحه کلیک کنید و توکن تولید شده را کپی کنید (این توکن دیگر نمایش داده نخواهد شد).
 
-### 🌟 Key Features
-- **Zero Server Overhead:** Heavy downloading and uploading are handled entirely by GitHub Actions.
-- **Direct Public Links:** Files are stored in GitHub Releases with public access for fast downloading (via IDM or browsers).
-- **Auto-Cleanup:** Files are automatically deleted after a specified retention period (up to 48 hours) to save space.
-- **Support for Huge Files:** Automatically splits files into chunks to bypass GitHub size limits.
+---
 
-### 💎 Support & Donation
-If you like this project and want to support its development, you can donate via:
+### گام دوم: استفاده از ربات در تلگرام
+1. وارد ربات اصلی شوید: [@git_cloud_bot](https://t.me/git_cloud_bot)
+2. دستور `/start` را ارسال کنید.
+3. لینک فایل، ویدیوی یوتیوب، اینستاگرام یا فایل تلگرامی خود را بفرستید.
+4. مود (حالت) پردازش مورد نظر را انتخاب کنید تا گیت‌هاب به صورت خودکار فایل را دانلود کرده و در بخش **Releases** ریپوی `GitCloud` برای شما قرار دهد.
+
+---
+
+### گام سوم: حمایت مالی (Donate)
+اگر این پروژه برای شما مفید بوده، می‌توانید از طریق آدرس‌های زیر حمایت کنید:
 - **TON:** `UQBChYa6MgPOBG9nhb__ndHGOpPyadZXrv06YKjWoU7tJnSp`
 - **USDT (BEP20/BSC):** `0x5D423b248B299E1A97c7098Ef8DAfB0F130cC951`
 
 ---
 
-<a name="persian"></a>
-## 🇮🇷 راهنمای فارسی
+<a name="english"></a>
+## 🇬🇧 Step-by-Step Guide
 
-### 🚀 گیت‌کلاد چیست؟
-گیت‌کلاد یک سیستم ابری پیشرفته (مبتنی بر ربات تلگرام و گیت‌هاب اکشنز) است که به شما اجازه می‌دهد از ریپوی شخصی گیت‌هاب خود به عنوان فضای ابری رایگان (از طریق بخش Releases) استفاده کنید. هر لینک مستقیم، ویدیوی یوتیوب یا فایل تلگرامی را به ربات بفرستید تا بدون مصرف پهنای باند سرور، روی گیت‌هاب شما آپلود شود.
+### Step 1: Generate GitHub Personal Access Token (PAT)
+1. Go to your GitHub account:
+   `Settings` > `Developer settings` > `Personal access tokens` > `Tokens (classic)`
+2. Click **Generate new token (classic)**.
+3. Give it a name (e.g., `GitCloudToken`).
+4. Select the following scopes:
+   - `repo`
+   - `workflow`
+5. Click **Generate token** and copy your token.
 
-### 🌟 ویژگی‌های کلیدی
-- **بدون نیاز به سرور سنگین:** تمام کارهای دانلود و آپلود توسط سرورهای قدرتمند گیت‌هاب اکشنز انجام می‌شود.
-- **لینک دانلود مستقیم:** فایل‌ها در بخش Releases ذخیره می‌شوند و لینک مستقیم با سرعت بالا برای دانلود (با IDM یا مرورگر) در اختیار شما قرار می‌گیرد.
-- **پاکسازی خودکار:** فایل‌ها پس از مدت‌زمان مشخص (تا ۴۸ ساعت) به صورت خودکار حذف می‌شوند تا فضای گیت‌هاب شما پر نشود.
-
-### 💎 حمایت مالی (Donate)
-اگر این پروژه برای شما مفید بوده و می‌خواهید از توسعه آن حمایت کنید، می‌توانید از طریق آدرس‌های زیر هدیه خود را ارسال کنید:
-- **TON:** `UQBChYa6MgPOBG9nhb__ndHGOpPyadZXrv06YKjWoU7tJnSp`
-- **USDT (BEP20/BSC):** `0x5D423b248B299E1A97c7098Ef8DAfB0F130cC951`
+### Step 2: Use the Telegram Bot
+1. Open the bot: [@git_cloud_bot](https://t.me/git_cloud_bot)
+2. Send `/start`.
+3. Send any direct link, YouTube/Instagram video link, or Telegram file.
+4. Choose your upload mode, and GitHub will automatically download and store it in your `GitCloud` repository **Releases**.
 
 ---
 <p align="center">
