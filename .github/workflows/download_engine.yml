@@ -56,11 +56,12 @@ jobs:
           
           ls -la
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: downloaded-file
-          path: downloaded_file*
+      - name: Create GitHub Release & Upload Files
+        run: |
+          TAG_NAME="file-${{ github.run_number }}-${{ github.run_id }}"
+          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud."
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Send Webhook Notification to Cloudflare Worker
         env:
@@ -71,7 +72,7 @@ jobs:
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          DOWNLOAD_LINK="https://github.com/${REPO}/actions/runs/${{ github.run_id }}"
+          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.rar"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
