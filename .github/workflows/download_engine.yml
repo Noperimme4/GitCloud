@@ -58,12 +58,12 @@ jobs:
 
       - name: Create GitHub Release & Upload Files
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
         run: |
-          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud Advanced Engine."
+          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud Advanced Engine." || gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud." --repo "${{ github.repository }}"
           
-          ASSET_URL=$(gh release view "$TAG_NAME" --json assets --jq '.assets[0].url')
+          ASSET_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets --jq '.assets[0].url')
           echo "DOWNLOAD_LINK=$ASSET_URL" >> $GITHUB_ENV
 
       - name: Send Webhook Notification to Cloudflare Worker
