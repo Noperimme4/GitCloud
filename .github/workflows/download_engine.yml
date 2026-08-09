@@ -57,14 +57,14 @@ jobs:
           ls -la
 
       - name: Create GitHub Release & Upload Files
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: file-${{ github.run_number }}-${{ github.run_id }}
+          name: Cloud Download #${{ github.run_number }}
+          body: Powered by GitCloud.
+          files: downloaded_file*
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
-          TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
-        run: |
-          gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud Advanced Engine." || gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud." --repo "${{ github.repository }}"
-          
-          ASSET_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets --jq '.assets[0].url')
-          echo "DOWNLOAD_LINK=$ASSET_URL" >> $GITHUB_ENV
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send Webhook Notification to Cloudflare Worker
         env:
@@ -72,7 +72,7 @@ jobs:
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
           DURATION: ${{ env.DURATION }}
           FILE_SIZE: ${{ env.FILE_SIZE }}
-          DOWNLOAD_LINK: ${{ env.DOWNLOAD_LINK }}
+          DOWNLOAD_LINK: https://github.com/${{ github.repository }}/releases/download/file-${{ github.run_number }}-${{ github.run_id }}/downloaded_file.rar
         run: |
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
