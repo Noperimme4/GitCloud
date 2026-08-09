@@ -3,15 +3,12 @@ name: GitCloud Advanced Engine
 on:
   repository_dispatch:
     types: [start_download]
-  workflow_dispatch:
-
-permissions:
-  contents: write
-  dispatches: write
 
 jobs:
   process_download:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -23,7 +20,7 @@ jobs:
 
       - name: Smart Download (Direct Link / YouTube / Torrent / Magnet)
         env:
-          TARGET_URL: ${{ github.event.client_payload.url || 'https://github.com/Noperi-00/PixLang/archive/refs/heads/main.zip' }}
+          TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
           echo "Starting download for: $TARGET_URL"
           START_TIME=$(date +%s)
@@ -57,11 +54,15 @@ jobs:
           
           ls -la
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release & Upload Files
+        uses: softprops/action-gh-release@v2
         with:
-          name: downloaded-file
-          path: downloaded_file*
+          tag_name: file-${{ github.run_number }}-${{ github.run_id }}
+          name: Cloud Download #${{ github.run_number }}
+          body: Powered by GitCloud.
+          files: downloaded_file*
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Send Webhook Notification to Cloudflare Worker
         env:
@@ -69,11 +70,10 @@ jobs:
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
           DURATION: ${{ env.DURATION }}
           FILE_SIZE: ${{ env.FILE_SIZE }}
+          TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          DOWNLOAD_LINK="https://github.com/${REPO}/actions/runs/${{ github.run_id }}"
-          if [ -n "$WEBHOOK_URL" ]; then
-            curl -s -X POST "$WEBHOOK_URL" \
-              -H "Content-Type: application/json" \
-              -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
-          fi
+          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.rar"
+          curl -s -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
