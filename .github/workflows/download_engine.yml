@@ -3,6 +3,7 @@ name: GitCloud Advanced Engine
 on:
   repository_dispatch:
     types: [start_download]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,7 +23,7 @@ jobs:
 
       - name: Smart Download (Direct Link / YouTube / Torrent / Magnet)
         env:
-          TARGET_URL: ${{ github.event.client_payload.url }}
+          TARGET_URL: ${{ github.event.client_payload.url || 'https://github.com/Noperi-00/PixLang/archive/refs/heads/main.zip' }}
         run: |
           echo "Starting download for: $TARGET_URL"
           START_TIME=$(date +%s)
@@ -71,6 +72,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           DOWNLOAD_LINK="https://github.com/${REPO}/actions/runs/${{ github.run_id }}"
-          curl -s -X POST "$WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
+          if [ -n "$WEBHOOK_URL" ]; then
+            curl -s -X POST "$WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
+          fi
