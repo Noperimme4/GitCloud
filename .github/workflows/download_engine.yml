@@ -4,6 +4,10 @@ on:
   repository_dispatch:
     types: [start_download]
 
+permissions:
+  contents: write
+  dispatches: write
+
 jobs:
   process_download:
     runs-on: ubuntu-latest
@@ -23,7 +27,6 @@ jobs:
           echo "Starting download for: $TARGET_URL"
           START_TIME=$(date +%s)
           
-          # Check if it is a torrent/magnet or standard link/youtube
           if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
             echo "Downloading via Aria2 (Torrent/Magnet)..."
             aria2c --seed-time=0 "$TARGET_URL"
@@ -36,15 +39,13 @@ jobs:
           DURATION=$((END_TIME - START_TIME))
           echo "DURATION=$DURATION" >> $GITHUB_ENV
           
-          # Get file size and name
           FILE_SIZE=$(du -sh downloaded_file* 2>/dev/null | awk '{print $1}')
           echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
           
-          # Auto-splitting for files larger than 1.8GB
           for f in downloaded_file*; do
             if [ -f "$f" ]; then
               FILE_SIZE_BYTES=$(stat -c%s "$f")
-              MAX_SIZE=$((1800 * 1024 * 1024)) # 1.8GB
+              MAX_SIZE=$((1800 * 1024 * 1024))
               if [ "$FILE_SIZE_BYTES" -gt "$MAX_SIZE" ]; then
                 echo "File is larger than 1.8GB. Splitting..."
                 split -b 1800m "$f" "${f}.part"
@@ -58,11 +59,10 @@ jobs:
       - name: Create GitHub Release & Upload Files
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: file-${{ github.run_number }}
+          TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
         run: |
           gh release create "$TAG_NAME" downloaded_file* --title "Cloud Download #${{ github.run_number }}" --notes "Powered by GitCloud Advanced Engine."
           
-          # Get release asset download URL
           ASSET_URL=$(gh release view "$TAG_NAME" --json assets --jq '.assets[0].url')
           echo "DOWNLOAD_LINK=$ASSET_URL" >> $GITHUB_ENV
 
