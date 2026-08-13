@@ -26,11 +26,18 @@ jobs:
           echo "Downloading: $TARGET_URL"
           START_TIME=$(date +%s)
           
-          yt-dlp --no-playlist \
-            --extractor-args "youtube:player_client=android" \
-            -f "best[height<=480]/best" \
-            -o "downloaded_file.%(ext)s" \
-            "$TARGET_URL"
+          # Let's use yt-dlp with format 18 or direct extraction
+          python3 -c "
+          import yt_dlp
+          import os
+          url = os.environ['TARGET_URL']
+          ydl_opts = {
+              'outtmpl': 'downloaded_file.mp4',
+              'format': '18/best',
+          }
+          with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+              ydl.download([url])
+          " || yt-dlp -f "18/best" -o "downloaded_file.mp4" "$TARGET_URL"
           
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
