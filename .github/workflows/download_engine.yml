@@ -19,11 +19,36 @@ jobs:
           sudo apt-get install -y aria2 ffmpeg
           pip install --upgrade yt-dlp requests
 
+      - name: Create Download Script
+        run: |
+          cat << 'EOF' > download.py
+          import yt_dlp
+          import os
+
+          url = os.environ.get('TARGET_URL')
+          print(f"Target URL: {url}")
+
+          ydl_opts = {
+              'outtmpl': 'downloaded_file.%(ext)s',
+              'format': 'best',
+              'noplaylist': True,
+          }
+
+          try:
+              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                  info = ydl.extract_info(url, download=True)
+                  filename = ydl.prepare_filename(info)
+                  print(f"Downloaded filename: {filename}")
+          except Exception as e:
+              print(f"Error downloading: {e}")
+              exit(1)
+          EOF
+
       - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          python3 -c "import yt_dlp; ydl = yt_dlp.YoutubeDL({'outtmpl': 'downloaded_file.mp4', 'format': '18'}); ydl.download(['$TARGET_URL'])"
+          python3 download.py
           ls -la
 
       - name: Create GitHub Release & Upload Files
@@ -32,7 +57,7 @@ jobs:
           tag_name: file-${{ github.run_number }}-${{ github.run_id }}
           name: Cloud Download #${{ github.run_number }}
           body: Powered by GitCloud.
-          files: downloaded_file.mp4
+          files: downloaded_file.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -46,7 +71,9 @@ jobs:
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.mp4"
+          FILE_NAME=$(ls downloaded_file.* 2>/dev/null | head -n 1)
+          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.mp4"; fi
+          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/${FILE_NAME}"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
