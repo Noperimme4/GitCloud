@@ -23,16 +23,26 @@ jobs:
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          python3 -c "
-          import subprocess
-          import os
-          url = os.environ['TARGET_URL']
-          print(f'Running yt-dlp on: {url}')
-          res = subprocess.run(['yt-dlp', '--no-playlist', '-f', '18', '-o', 'downloaded_file.mp4', url])
-          if res.returncode != 0:
-              print('Format 18 failed, trying default best...')
-              subprocess.run(['yt-dlp', '--no-playlist', '-o', 'downloaded_file.%(ext)s', url], check=True)
-          "
+          echo "Downloading: $TARGET_URL"
+          START_TIME=$(date +%s)
+          
+          if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
+            aria2c --seed-time=0 "$TARGET_URL"
+          elif [[ "$TARGET_URL" =~ youtu ]]; then
+            # Use multiple bypass strategies for YouTube
+            yt-dlp --no-playlist               --extractor-args "youtube:player_client=android,web;po_token=web"               -f "best[height<=480]/best"               -o "downloaded_file.%(ext)s"               "$TARGET_URL" ||             yt-dlp --no-playlist               --extractor-args "youtube:player_client=android"               -f "best[height<=480]/best"               -o "downloaded_file.%(ext)s"               "$TARGET_URL" ||             yt-dlp --no-playlist               -f "best[height<=480]/best"               -o "downloaded_file.%(ext)s"               "$TARGET_URL" ||             curl -LJO "$TARGET_URL"
+          else
+            yt-dlp --no-playlist -o "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
+          fi
+          
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "DURATION=$DURATION" >> $GITHUB_ENV
+          
+          FILE_SIZE=$(du -sh downloaded_file* 2>/dev/null | head -n 1 | awk '{print $1}')
+          if [ -z "$FILE_SIZE" ]; then FILE_SIZE="0MB"; fi
+          echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
+          
           ls -la
 
       - name: Create GitHub Release & Upload Files
@@ -50,8 +60,8 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "30"
-          FILE_SIZE: "45MB"
+          DURATION: ${{ env.DURATION }}
+          FILE_SIZE: ${{ env.FILE_SIZE }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
