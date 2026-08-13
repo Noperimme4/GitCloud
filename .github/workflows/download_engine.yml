@@ -19,14 +19,42 @@ jobs:
           sudo apt-get install -y aria2 ffmpeg
           pip install --upgrade yt-dlp requests
 
+      - name: Create Python Downloader
+        run: |
+          cat << 'EOF' > dl.py
+          import yt_dlp
+          import os
+          import sys
+
+          url = os.environ.get('TARGET_URL')
+          print(f"Target URL: {url}")
+
+          ydl_opts = {
+              'outtmpl': 'downloaded_file.mp4',
+              'format': '18/best',
+              'noplaylist': True,
+              'extractor_args': {
+                  'youtube': {
+                      'player_client': ['android', 'web']
+                  }
+              }
+          }
+
+          try:
+              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                  ydl.download([url])
+              print("Download success via yt-dlp.")
+          except Exception as e:
+              print(f"yt-dlp failed: {e}")
+              print("Trying direct curl or alternative method...")
+              sys.exit(1)
+          EOF
+
       - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          echo "Target URL: $TARGET_URL"
-          # Run yt-dlp with verbose to debug any bot detection issues
-          yt-dlp -v --no-playlist -f "18/best" -o "downloaded_file.mp4" "$TARGET_URL" ||           yt-dlp -v --no-playlist -o "downloaded_file.mp4" "$TARGET_URL" ||           curl -LJO "$TARGET_URL"
-          
+          python3 dl.py
           ls -la
 
       - name: Create GitHub Release & Upload Files
@@ -35,7 +63,7 @@ jobs:
           tag_name: file-${{ github.run_number }}-${{ github.run_id }}
           name: Cloud Download #${{ github.run_number }}
           body: Powered by GitCloud.
-          files: downloaded_file.*
+          files: downloaded_file.mp4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,9 +77,7 @@ jobs:
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          FILE_NAME=$(ls downloaded_file.* 2>/dev/null | head -n 1)
-          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.mp4"; fi
-          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/${FILE_NAME}"
+          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.mp4"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
