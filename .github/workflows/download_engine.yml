@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade --pre yt-dlp requests
+          pip install --upgrade yt-dlp requests
 
       - name: Smart Download
         env:
@@ -26,13 +26,14 @@ jobs:
           echo "Target URL: $TARGET_URL"
           START_TIME=$(date +%s)
           
-          # Try yt-dlp with tv or tv_embedded client which often bypasses bot checks without cookies
+          # Try yt-dlp with web client and no-check-certificate
           yt-dlp --no-playlist \
-            --extractor-args "youtube:player_client=tv,tv_embedded" \
+            --extractor-args "youtube:player_client=web" \
             -f "best[height<=480]/best" \
             -o "downloaded_file.mp4" \
             "$TARGET_URL" || \
           yt-dlp --no-playlist \
+            --extractor-args "youtube:player_client=mweb" \
             -f "best[height<=480]/best" \
             -o "downloaded_file.mp4" \
             "$TARGET_URL"
