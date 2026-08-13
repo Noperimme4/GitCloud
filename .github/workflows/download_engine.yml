@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade "yt-dlp[default]" requests
+          pip install --upgrade yt-dlp requests
 
       - name: Smart Download
         env:
@@ -29,9 +29,9 @@ jobs:
           if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
             aria2c --seed-time=0 "$TARGET_URL"
           elif [[ "$TARGET_URL" =~ youtu ]]; then
-            yt-dlp -f "b[height<=480]/b" -o "downloaded_file.%(ext)s" "$TARGET_URL" || yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL"
+            yt-dlp -f "bestvideo[height<=480]+bestaudio/best" --no-playlist -o "downloaded_file.%(ext)s" "$TARGET_URL" || yt-dlp --no-playlist -o "downloaded_file.%(ext)s" "$TARGET_URL"
           else
-            yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
+            yt-dlp --no-playlist -o "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
           fi
           
           END_TIME=$(date +%s)
