@@ -13,27 +13,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python, Aria2 & FFmpeg
+      - name: Set up Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade yt-dlp requests
+          pip install --upgrade "yt-dlp[default]" requests
 
       - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          echo "Starting download for: $TARGET_URL"
+          echo "Downloading: $TARGET_URL"
           START_TIME=$(date +%s)
           
           if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
-            echo "Downloading via Aria2 (Torrent/Magnet)..."
             aria2c --seed-time=0 "$TARGET_URL"
           elif [[ "$TARGET_URL" =~ youtu ]]; then
-            echo "Downloading YouTube Video..."
-            yt-dlp -f "bestvideo[height<=480]+bestaudio/best[height<=480]/best" --merge-output-format mp4 -o "downloaded_file.%(ext)s" "$TARGET_URL" || yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL"
+            yt-dlp -f "b[height<=480]/b" -o "downloaded_file.%(ext)s" "$TARGET_URL" || yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL"
           else
-            echo "Downloading Direct Link / Other..."
             yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
           fi
           
@@ -43,18 +40,6 @@ jobs:
           
           FILE_SIZE=$(du -sh downloaded_file* 2>/dev/null | awk '{print $1}')
           echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
-          
-          for f in downloaded_file*; do
-            if [ -f "$f" ]; then
-              FILE_SIZE_BYTES=$(stat -c%s "$f")
-              MAX_SIZE=$((1800 * 1024 * 1024))
-              if [ "$FILE_SIZE_BYTES" -gt "$MAX_SIZE" ]; then
-                echo "File is larger than 1.8GB. Splitting..."
-                split -b 1800m "$f" "${f}.part"
-                rm "$f"
-              fi
-            fi
-          done
           
           ls -la
 
