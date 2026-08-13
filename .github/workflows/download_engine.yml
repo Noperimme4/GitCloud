@@ -13,12 +13,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python & Aria2
+      - name: Set up Python, Aria2 & FFmpeg
         run: |
-          sudo apt-get update && sudo apt-get install -y aria2
-          pip install yt-dlp requests
+          sudo apt-get update
+          sudo apt-get install -y aria2 ffmpeg
+          pip install --upgrade yt-dlp requests
 
-      - name: Smart Download (Direct Link / YouTube / Torrent / Magnet)
+      - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
@@ -28,14 +29,12 @@ jobs:
           if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
             echo "Downloading via Aria2 (Torrent/Magnet)..."
             aria2c --seed-time=0 "$TARGET_URL"
+          elif [[ "$TARGET_URL" =~ youtu ]]; then
+            echo "Downloading YouTube Video..."
+            yt-dlp -f "bestvideo[height<=480]+bestaudio/best[height<=480]/best" --merge-output-format mp4 -o "downloaded_file.%(ext)s" "$TARGET_URL" || yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL"
           else
-            echo "Downloading via yt-dlp / curl..."
-            if [[ "$TARGET_URL" =~ youtu ]]; then
-              sudo apt-get install -y ffmpeg
-              yt-dlp -f "bestvideo[height<=480]+bestaudio/best[height<=480]/best" --merge-output-format mp4 -o "downloaded_file.%(ext)s" "$TARGET_URL"
-            else
-              yt-dlp --output "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
-            fi
+            echo "Downloading Direct Link / Other..."
+            yt-dlp -o "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
           fi
           
           END_TIME=$(date +%s)
@@ -70,6 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Send Webhook Notification to Cloudflare Worker
+        if: always()
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
@@ -78,7 +78,9 @@ jobs:
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.rar"
+          FILE_NAME=$(ls downloaded_file* 2>/dev/null | head -n 1)
+          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.rar"; fi
+          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/${FILE_NAME}"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
