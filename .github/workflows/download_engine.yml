@@ -66,7 +66,7 @@ jobs:
 
       - name: Send Webhook Notification to Cloudflare Worker
         env:
-          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url }}
+          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
           DURATION: ${{ env.DURATION }}
           FILE_SIZE: ${{ env.FILE_SIZE }}
