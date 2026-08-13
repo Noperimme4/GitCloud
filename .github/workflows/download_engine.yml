@@ -30,7 +30,12 @@ jobs:
             aria2c --seed-time=0 "$TARGET_URL"
           else
             echo "Downloading via yt-dlp / curl..."
-            yt-dlp --output "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
+            if [[ "$TARGET_URL" =~ youtu ]]; then
+              sudo apt-get install -y ffmpeg
+              yt-dlp -f "bestvideo[height<=480]+bestaudio/best[height<=480]/best" --merge-output-format mp4 -o "downloaded_file.%(ext)s" "$TARGET_URL"
+            else
+              yt-dlp --output "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
+            fi
           fi
           
           END_TIME=$(date +%s)
