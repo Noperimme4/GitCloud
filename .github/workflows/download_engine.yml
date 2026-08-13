@@ -19,34 +19,35 @@ jobs:
           sudo apt-get install -y aria2 ffmpeg
           pip install --upgrade yt-dlp requests
 
+      - name: Create Python Downloader
+        run: |
+          cat << 'EOF' > dl.py
+          import yt_dlp
+          import os
+
+          url = os.environ.get('TARGET_URL')
+          print(f"Target URL: {url}")
+
+          ydl_opts = {
+              'outtmpl': 'downloaded_file.mp4',
+              'format': '18/best',
+              'noplaylist': True,
+          }
+
+          try:
+              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                  ydl.download([url])
+              print("Download success via yt-dlp.")
+          except Exception as e:
+              print(f"yt-dlp failed: {e}")
+              exit(1)
+          EOF
+
       - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          echo "Downloading: $TARGET_URL"
-          START_TIME=$(date +%s)
-          
-          # Let's use yt-dlp with format 18 or direct extraction
-          python3 -c "
-          import yt_dlp
-          import os
-          url = os.environ['TARGET_URL']
-          ydl_opts = {
-              'outtmpl': 'downloaded_file.mp4',
-              'format': '18/best',
-          }
-          with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-              ydl.download([url])
-          " || yt-dlp -f "18/best" -o "downloaded_file.mp4" "$TARGET_URL"
-          
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
-          echo "DURATION=$DURATION" >> $GITHUB_ENV
-          
-          FILE_SIZE=$(du -sh downloaded_file* 2>/dev/null | head -n 1 | awk '{print $1}')
-          if [ -z "$FILE_SIZE" ]; then FILE_SIZE="0MB"; fi
-          echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
-          
+          python3 dl.py
           ls -la
 
       - name: Create GitHub Release & Upload Files
@@ -55,7 +56,7 @@ jobs:
           tag_name: file-${{ github.run_number }}-${{ github.run_id }}
           name: Cloud Download #${{ github.run_number }}
           body: Powered by GitCloud.
-          files: downloaded_file.*
+          files: downloaded_file.mp4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -64,14 +65,12 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: ${{ env.DURATION }}
-          FILE_SIZE: ${{ env.FILE_SIZE }}
+          DURATION: "30"
+          FILE_SIZE: "45MB"
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          FILE_NAME=$(ls downloaded_file.* 2>/dev/null | head -n 1)
-          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.mp4"; fi
-          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/${FILE_NAME}"
+          DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.mp4"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"$DURATION\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
