@@ -26,7 +26,7 @@ jobs:
           echo "Downloading: $TARGET_URL"
           START_TIME=$(date +%s)
           
-          yt-dlp --no-playlist "$TARGET_URL" -o "downloaded_file.%(ext)s" ||           yt-dlp "$TARGET_URL" -o "downloaded_file.%(ext)s" ||           aria2c --seed-time=0 "$TARGET_URL" ||           curl -L -C - -o downloaded_file.rar "$TARGET_URL" ||           curl -LJO "$TARGET_URL" || true
+          yt-dlp --no-playlist -f "best[height<=480]/best" -o "downloaded_file.mp4" "$TARGET_URL" ||           yt-dlp --no-playlist -o "downloaded_file.mp4" "$TARGET_URL" ||           aria2c --seed-time=0 "$TARGET_URL" -o "downloaded_file.mp4" ||           curl -L -C - -o downloaded_file.mp4 "$TARGET_URL" ||           curl -LJO "$TARGET_URL"
           
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
@@ -44,7 +44,9 @@ jobs:
           tag_name: file-${{ github.run_number }}-${{ github.run_id }}
           name: Cloud Download #${{ github.run_number }}
           body: Powered by GitCloud.
-          files: downloaded_file*
+          files: |
+            downloaded_file.mp4
+            downloaded_file.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -58,8 +60,8 @@ jobs:
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          FILE_NAME=$(ls downloaded_file* 2>/dev/null | head -n 1)
-          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.rar"; fi
+          FILE_NAME=$(ls downloaded_file.* 2>/dev/null | head -n 1)
+          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.mp4"; fi
           DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/${FILE_NAME}"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
