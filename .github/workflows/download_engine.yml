@@ -17,43 +17,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade --pre yt-dlp requests
-
-      - name: Create Python Downloader
-        run: |
-          cat << 'EOF' > dl.py
-          import yt_dlp
-          import os
-          import sys
-
-          url = os.environ.get('TARGET_URL')
-          print(f"Target URL: {url}")
-
-          ydl_opts = {
-              'outtmpl': 'downloaded_file.mp4',
-              'format': 'best',
-              'noplaylist': True,
-              'extractor_args': {
-                  'youtube': {
-                      'player_client': ['web', 'mweb']
-                  }
-              }
-          }
-
-          try:
-              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                  ydl.download([url])
-              print("Download success via yt-dlp.")
-          except Exception as e:
-              print(f"yt-dlp failed: {e}")
-              sys.exit(1)
-          EOF
+          pip install --upgrade yt-dlp requests
 
       - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          python3 dl.py
+          yt-dlp -f 18 -o downloaded_file.mp4 "$TARGET_URL"
           ls -la
 
       - name: Create GitHub Release & Upload Files
