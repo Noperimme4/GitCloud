@@ -19,11 +19,69 @@ jobs:
           sudo apt-get install -y aria2 ffmpeg
           pip install --upgrade yt-dlp requests
 
+      - name: Create Python Downloader
+        run: |
+          cat << 'EOF' > dl.py
+          import requests
+          import os
+          import sys
+          import json
+          import subprocess
+
+          url = os.environ.get('TARGET_URL')
+          print(f"Target URL: {url}")
+
+          # Strategy 1: Cobalt API instances
+          cobalt_instances = [
+              "https://api.cobalt.tools/api/json",
+              "https://cobalt-api.kwi.fi/api/json",
+              "https://co.wuk.sh/api/json"
+          ]
+
+          downloaded = False
+
+          for inst in cobalt_instances:
+              try:
+                  print(f"Trying Cobalt API: {inst}")
+                  res = requests.post(inst, headers={"Accept": "application/json", "Content-Type": "application/json"}, json={"url": url, "videoQuality": "480"}, timeout=10)
+                  if res.status_code == 200:
+                      data = res.json()
+                      dl_url = data.get('url')
+                      if dl_url:
+                          print(f"Got direct stream URL from Cobalt! Downloading...")
+                          r = requests.get(dl_url, stream=True, timeout=60)
+                          if r.status_code == 200:
+                              with open("downloaded_file.mp4", "wb") as f:
+                                  for chunk in r.iter_content(chunk_size=1024*1024):
+                                      if chunk: f.write(chunk)
+                              if os.path.exists("downloaded_file.mp4") and os.path.getsize("downloaded_file.mp4") > 100000:
+                                  print(f"Successfully downloaded via Cobalt! Size: {os.path.getsize('downloaded_file.mp4')} bytes")
+                                  downloaded = True
+                                  break
+              except Exception as e:
+                  print(f"Cobalt instance {inst} error: {e}")
+
+          # Strategy 2: Fallback to yt-dlp with user-agent and web client
+          if not downloaded:
+              print("Cobalt failed, trying yt-dlp fallback...")
+              try:
+                  cmd = ['yt-dlp', '--no-playlist', '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', '-o', 'downloaded_file.mp4', url]
+                  subprocess.run(cmd)
+                  if os.path.exists("downloaded_file.mp4") and os.path.getsize("downloaded_file.mp4") > 100000:
+                      downloaded = True
+              except Exception as e:
+                  print(f"yt-dlp fallback error: {e}")
+
+          if not downloaded:
+              print("All download strategies failed!")
+              sys.exit(1)
+          EOF
+
       - name: Smart Download
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          yt-dlp -f 18 -o downloaded_file.mp4 "$TARGET_URL"
+          python3 dl.py
           ls -la
 
       - name: Create GitHub Release & Upload Files
