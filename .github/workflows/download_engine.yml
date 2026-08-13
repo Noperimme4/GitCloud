@@ -49,9 +49,9 @@ jobs:
           tag_name: file-${{ github.run_number }}-${{ github.run_id }}
           name: Cloud Download #${{ github.run_number }}
           body: Powered by GitCloud.
-          files: downloaded_file*
+          files: downloaded_file.*
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send Webhook Notification to Cloudflare Worker
         if: always()
@@ -63,8 +63,8 @@ jobs:
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          FILE_NAME=$(ls downloaded_file* 2>/dev/null | head -n 1)
-          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.rar"; fi
+          FILE_NAME=$(ls downloaded_file.* 2>/dev/null | head -n 1)
+          if [ -z "$FILE_NAME" ]; then FILE_NAME="downloaded_file.mp4"; fi
           DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/${FILE_NAME}"
           curl -s -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
