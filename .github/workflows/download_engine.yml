@@ -26,14 +26,11 @@ jobs:
           echo "Downloading: $TARGET_URL"
           START_TIME=$(date +%s)
           
-          if [[ "$TARGET_URL" =~ ^magnet: ]] || [[ "$TARGET_URL" =~ \.torrent$ ]]; then
-            aria2c --seed-time=0 "$TARGET_URL"
-          elif [[ "$TARGET_URL" =~ youtu ]]; then
-            # Use multiple bypass strategies for YouTube
-            yt-dlp --no-playlist               --extractor-args "youtube:player_client=android,web;po_token=web"               -f "best[height<=480]/best"               -o "downloaded_file.%(ext)s"               "$TARGET_URL" ||             yt-dlp --no-playlist               --extractor-args "youtube:player_client=android"               -f "best[height<=480]/best"               -o "downloaded_file.%(ext)s"               "$TARGET_URL" ||             yt-dlp --no-playlist               -f "best[height<=480]/best"               -o "downloaded_file.%(ext)s"               "$TARGET_URL" ||             curl -LJO "$TARGET_URL"
-          else
-            yt-dlp --no-playlist -o "downloaded_file.%(ext)s" "$TARGET_URL" || curl -L -C - -o downloaded_file.rar "$TARGET_URL" || curl -LJO "$TARGET_URL"
-          fi
+          yt-dlp --no-playlist \
+            --extractor-args "youtube:player_client=android" \
+            -f "best[height<=480]/best" \
+            -o "downloaded_file.%(ext)s" \
+            "$TARGET_URL"
           
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
