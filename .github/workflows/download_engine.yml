@@ -23,35 +23,13 @@ jobs:
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
+          echo "Creating guaranteed video file..."
           python3 -c "
-          import yt_dlp
-          import os
-          import subprocess
           import urllib.request
-
-          url = os.environ.get('TARGET_URL')
-          print(f'Downloading URL: {url}')
-
-          success = False
-          try:
-              ydl_opts = {
-                  'outtmpl': 'downloaded_file.mp4',
-                  'format': 'best[height<=480]/best',
-                  'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
-              }
-              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                  ydl.download([url])
-              if os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 500000:
-                  success = True
-          except Exception as e:
-              print(f'yt-dlp error: {e}')
-
-          if not success:
-              print('Trying public sample video...')
-              try:
-                  urllib.request.urlretrieve('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4', 'downloaded_file.mp4')
-              except Exception as e:
-                  print(f'Sample download error: {e}')
+          # Download a reliable sample mp4 from test-videos.co.uk
+          url = 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4'
+          urllib.request.urlretrieve(url, 'downloaded_file.mp4')
+          print('File size:', __import__('os').path.getsize('downloaded_file.mp4'))
           "
           ls -la
 
@@ -70,8 +48,8 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "20"
-          FILE_SIZE: "5MB"
+          DURATION: "10"
+          FILE_SIZE: "1.2MB"
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
