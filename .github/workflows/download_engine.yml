@@ -14,43 +14,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download via Cobalt API
+      - name: Set up yt-dlp with android client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install --upgrade yt-dlp
+
+      - name: Download Video
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
-          python3 -c "
-          import urllib.request
-          import json
-          import os
-
-          url = os.environ.get('TARGET_URL') or 'https://youtu.be/gyUFqBm3Q4o'
-          print('API Download for:', url)
-
-          req_data = json.dumps({'url': url, 'videoQuality': '720'}).encode('utf-8')
-          req = urllib.request.Request('https://api.cobalt.tools/api/json', data=req_data, headers={
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'User-Agent': 'GitCloud/3.5'
-          })
-
-          try:
-              with urllib.request.urlopen(req) as resp:
-                  res = json.loads(resp.read().decode())
-                  print('Cobalt Response:', res)
-                  download_url = res.get('url') or res.get('picker', [{}])[0].get('url')
-                  if download_url:
-                      print('Downloading from Cobalt stream URL...')
-                      urllib.request.urlretrieve(download_url, 'downloaded_file.mp4')
-          except Exception as e:
-              print('Cobalt API error:', e)
-
-          if not os.path.exists('downloaded_file.mp4') or os.path.getsize('downloaded_file.mp4') < 1000000:
-              print('Fallback to yt-dlp...')
-              import subprocess
-              subprocess.run(['yt-dlp', '--no-playlist', '-o', 'downloaded_file.mp4', url])
-
-          print('Final size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
-          "
+          URL="${TARGET_URL:-https://youtu.be/gyUFqBm3Q4o}"
+          echo "Downloading: $URL"
+          yt-dlp --no-playlist --extractor-args "youtube:player_client=android" -f "18/best" -o "downloaded_file.mp4" "$URL"
+          ls -lh downloaded_file.mp4
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -63,11 +40,11 @@ jobs:
       - name: Send Webhook Notification
         if: always()
         env:
-          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
-          CHAT_ID: ${{ github.event.client_payload.chat_id || '7645510290' }}
+          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || "https://gitcloud.modern-tools.ir/webhook/github-done" }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id || "7645510290" }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk '{print $1}')
+          FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk "{print $1}")
           DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.mp4"
           curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d "{"chat_id": "$CHAT_ID", "duration": "12 hours", "file_size": "$FILE_SIZE", "download_link": "$DOWNLOAD_LINK"}"
