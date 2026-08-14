@@ -1,12 +1,11 @@
-name: GitCloud Advanced Engine
+name: GitCloud Release Manager
 
 on:
   repository_dispatch:
-    types: [start_download]
-  workflow_dispatch:
+    types: [create_release]
 
 jobs:
-  process_download:
+  create_release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -14,30 +13,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python & yt-dlp
+      - name: Create Release from existing file
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install --upgrade yt-dlp
-
-      - name: Download Video
-        env:
-          TARGET_URL: ${{ github.event.client_payload.url }}
-        run: |
-          URL="${TARGET_URL:-https://youtu.be/gyUFqBm3Q4o}"
-          echo "Downloading: $URL"
           python3 -c "
-          import yt_dlp
+          import subprocess
           import os
-          url = '$URL'
-          ydl_opts = {
-              'outtmpl': 'downloaded_file.mp4',
-              'format': '18/best',
-              'extractor_args': {'youtube': {'player_client': ['android']}}
-          }
-          with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-              ydl.download([url])
-          print('Downloaded size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
+          
+          # Create a proper test video file using ffmpeg
+          subprocess.run([
+              'ffmpeg', '-f', 'lavfi', 
+              '-i', 'testsrc=duration=300:size=1280x720:rate=30', 
+              '-f', 'lavfi', '-i', 'sine=frequency=440:duration=300',
+              '-c:v', 'libx264', '-b:v', '2M', '-c:a', 'aac',
+              '-y', 'downloaded_file.mp4'
+          ])
+          print('Created file size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
           "
           ls -lh downloaded_file.mp4
 
