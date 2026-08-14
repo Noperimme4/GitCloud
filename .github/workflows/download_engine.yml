@@ -17,46 +17,37 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade requests
+          pip install --upgrade --pre yt-dlp requests
 
-      - name: Download via Hugging Face Bridge API
+      - name: YouTube Android Client Downloader
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
+          echo "Target URL: $TARGET_URL"
+          
           python3 -c "
-          import requests
+          import yt_dlp
           import os
-          import sys
 
-          url = os.environ.get('TARGET_URL')
-          print('Requesting download from HF Bridge for URL:', url)
+          url = os.environ.get('TARGET_URL', '')
+          print(f'Downloading with android player client: {url}')
 
-          bridge_api = 'https://mohammad13900-gitcloud-bridge.hf.space/download_url'
-          try:
-              resp = requests.post(bridge_api, json={'url': url}, timeout=300)
-              if resp.status_code == 200:
-                  data = resp.json()
-                  download_url = data.get('download_url')
-                  if download_url:
-                      print('Got direct download URL from Bridge:', download_url)
-                      r = requests.get(download_url, stream=True, timeout=600)
-                      with open('downloaded_file.mp4', 'wb') as f:
-                          for chunk in r.iter_content(chunk_size=4*1024*1024):
-                              if chunk: f.write(chunk)
-                      print('Downloaded successfully from Bridge!')
-                      sys.exit(0)
-              print('Bridge failed with response:', resp.text)
-          except Exception as e:
-              print('Bridge error:', e)
+          ydl_opts = {
+              'outtmpl': 'downloaded_file.mp4',
+              'format': '18/best',
+              'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+          }
 
-          print('Downloading fallback video...')
-          import urllib.request
-          urllib.request.urlretrieve('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4', 'downloaded_file.mp4')
+          with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+              ydl.download([url])
+
+          size_mb = os.path.getsize('downloaded_file.mp4') / (1024 * 1024)
+          print(f'SUCCESS! Downloaded full file: {size_mb:.2f} MB')
           "
           
-          ls -lh downloaded_file.mp4
           FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk '{print $1}')
           echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
+          ls -lh downloaded_file.mp4
 
       - name: Create GitHub Release & Upload Files
         uses: softprops/action-gh-release@v2
@@ -73,7 +64,7 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "30"
+          DURATION: "20"
           FILE_SIZE: ${{ env.FILE_SIZE }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
