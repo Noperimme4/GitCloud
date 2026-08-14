@@ -29,7 +29,7 @@ jobs:
           print('Downloading:', url)
           cmd = ['yt-dlp', '--no-playlist', '--extractor-args', 'youtube:player_client=android', '-f', '18/best', '-o', 'downloaded_file.mp4', url]
           res = subprocess.run(cmd)
-          if res.returncode != 0 or not os.path.exists('downloaded_file.mp4') or os.path.getsize('downloaded_file.mp4'] < 1000000:
+          if res.returncode != 0 or not os.path.exists('downloaded_file.mp4') or os.path.getsize('downloaded_file.mp4') < 1000000:
               print('Fallback download...')
               subprocess.run(['yt-dlp', '--no-playlist', '-o', 'downloaded_file.mp4', url])
           print('Final size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
