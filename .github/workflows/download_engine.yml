@@ -17,17 +17,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade requests
 
       - name: Download Sample Video Safely
         run: |
-          python3 -c "
-          import urllib.request
-          url = 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4'
-          print('Downloading sample video...')
-          urllib.request.urlretrieve(url, 'downloaded_file.mp4')
-          print('Done! Size:', __import__('os').path.getsize('downloaded_file.mp4'))
-          "
+          curl -L -s "https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/person-bicycle-car-detection.mp4" -o downloaded_file.mp4
           ls -la
 
       - name: Create GitHub Release & Upload Files
@@ -45,8 +38,8 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "10"
-          FILE_SIZE: "1.2MB"
+          DURATION: "15"
+          FILE_SIZE: "3.5MB"
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
