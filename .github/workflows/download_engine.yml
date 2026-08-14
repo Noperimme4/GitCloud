@@ -3,6 +3,7 @@ name: GitCloud Advanced Engine
 on:
   repository_dispatch:
     types: [start_download]
+  workflow_dispatch:
 
 jobs:
   process_download:
@@ -28,6 +29,8 @@ jobs:
           import os
 
           url = os.environ.get('TARGET_URL', '')
+          if not url:
+              url = 'https://youtu.be/gyUFqBm3Q4o'
           print('URL:', url)
 
           cmd = ['yt-dlp', '--no-playlist', '--extractor-args', 'youtube:player_client=android', '-f', '18/best', '-o', 'downloaded_file.mp4', url]
@@ -62,7 +65,7 @@ jobs:
         if: always()
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
-          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id || '7645510290' }}
           DURATION: "12 hours"
           FILE_SIZE: ${{ env.FILE_SIZE }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
