@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up yt-dlp with android client
+      - name: Set up Python
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
@@ -26,7 +26,7 @@ jobs:
         run: |
           URL="${TARGET_URL:-https://youtu.be/gyUFqBm3Q4o}"
           echo "Downloading: $URL"
-          yt-dlp --no-playlist --extractor-args "youtube:player_client=android" -f "18/best" -o "downloaded_file.mp4" "$URL"
+          yt-dlp --no-playlist -f "18/best" -o "downloaded_file.mp4" "$URL"
           ls -lh downloaded_file.mp4
 
       - name: Release
@@ -40,11 +40,11 @@ jobs:
       - name: Send Webhook Notification
         if: always()
         env:
-          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || "https://gitcloud.modern-tools.ir/webhook/github-done" }}
-          CHAT_ID: ${{ github.event.client_payload.chat_id || "7645510290" }}
+          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id || '7645510290' }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
-          FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk "{print $1}")
+          FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk '{print $1}')
           DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.mp4"
           curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d "{"chat_id": "$CHAT_ID", "duration": "12 hours", "file_size": "$FILE_SIZE", "download_link": "$DOWNLOAD_LINK"}"
