@@ -17,46 +17,30 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade yt-dlp requests
+          pip install --upgrade --pre yt-dlp requests
 
-      - name: Reliable YouTube Downloader
+      - name: YouTube Android VR Downloader
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
           python3 -c "
           import yt_dlp
           import os
-          import subprocess
 
           url = os.environ.get('TARGET_URL', '')
           print(f'Downloading URL: {url}')
 
-          success = False
-          
-          # Try standard yt-dlp command line
-          try:
-              cmd = ['yt-dlp', '--no-playlist', '-f', '18', '-o', 'downloaded_file.mp4', url]
-              res = subprocess.run(cmd)
-              if res.returncode == 0 and os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 10000000:
-                  success = True
-          except Exception as e:
-              print(f'yt-dlp format 18 error: {e}')
+          ydl_opts = {
+              'outtmpl': 'downloaded_file.mp4',
+              'format': '18/best[ext=mp4]/best',
+              'extractor_args': {'youtube': {'player_client': ['android_vr', 'ios']}},
+          }
 
-          if not success:
-              try:
-                  cmd = ['yt-dlp', '--no-playlist', '-o', 'downloaded_file.mp4', url]
-                  res = subprocess.run(cmd)
-                  if res.returncode == 0 and os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 10000000:
-                      success = True
-              except Exception as e:
-                  print(f'yt-dlp default error: {e}')
+          with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+              ydl.download([url])
 
-          if not success:
-              print('Fallback: downloading reliable sample video...')
-              import urllib.request
-              urllib.request.urlretrieve('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4', 'downloaded_file.mp4')
-
-          print('Final file size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
+          size_mb = os.path.getsize('downloaded_file.mp4') / (1024 * 1024)
+          print(f'SUCCESS! Downloaded full file: {size_mb:.2f} MB')
           "
           
           FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk '{print $1}')
@@ -78,7 +62,7 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "25"
+          DURATION: "20"
           FILE_SIZE: ${{ env.FILE_SIZE }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
