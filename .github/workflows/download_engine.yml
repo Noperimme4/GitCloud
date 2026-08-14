@@ -17,83 +17,62 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade requests
+          pip install --upgrade requests yt-dlp
 
-      - name: YouTube API Downloader (Cobalt/Invidious)
+      - name: Direct Cobal/Yt-Dlp Downloader
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
         run: |
           python3 -c "
           import requests
           import os
-          import sys
 
           url = os.environ.get('TARGET_URL', '')
-          print('Downloading URL via API:', url)
+          print('URL:', url)
 
-          downloaded = False
+          # Try Cobalt API v2 /api/json
+          try:
+              headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
+              body = {'url': url}
+              r = requests.post('https://api.cobalt.tools/api/json', json=body, headers=headers, timeout=25)
+              print('Cobalt status:', r.status_code, r.text[:200])
+              if r.status_code == 200:
+                  j = r.json()
+                  dl = j.get('url') or (j.get('picker') and j.get('picker')[0].get('url'))
+                  if dl:
+                      print('Downloading from Cobalt DL:', dl)
+                      sr = requests.get(dl, stream=True, timeout=300, headers={'User-Agent': 'Mozilla/5.0'})
+                      with open('downloaded_file.mp4', 'wb') as f:
+                          for chunk in sr.iter_content(chunk_size=4*1024*1024):
+                              if chunk: f.write(chunk)
+          except Exception as e:
+              print('Cobalt error:', e)
 
-          cobalt_instances = [
-              'https://co.wuk.sh/api/json',
-              'https://cobalt.kwiatekmateusz.pl/api/json'
-          ]
-
-          for api in cobalt_instances:
+          if not os.path.exists('downloaded_file.mp4') or os.path.getsize('downloaded_file.mp4') < 10000000:
+              print('Trying Cobalt alternative instance...')
               try:
-                  print('Trying Cobalt API:', api)
-                  headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-                  body = {'url': url, 'videoQuality': '720'}
-                  r = requests.post(api, json=body, headers=headers, timeout=20)
+                  r = requests.post('https://co.wuk.sh/api/json', json={'url': url}, headers={'Accept': 'application/json', 'Content-Type': 'application/json'}, timeout=25)
                   if r.status_code == 200:
-                      res_json = r.json()
-                      dl_url = res_json.get('url') or res_json.get('picker', [{}])[0].get('url')
-                      if dl_url:
-                          print('Got download URL from Cobalt:', dl_url)
-                          sr = requests.get(dl_url, stream=True, timeout=300)
+                      dl = r.json().get('url')
+                      if dl:
+                          sr = requests.get(dl, stream=True, timeout=300)
                           with open('downloaded_file.mp4', 'wb') as f:
                               for chunk in sr.iter_content(chunk_size=4*1024*1024):
                                   if chunk: f.write(chunk)
-                          if os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 10000000:
-                              print('Successfully downloaded via Cobalt API!')
-                              downloaded = True
-                              break
               except Exception as e:
-                  print('Cobalt API error:', e)
+                  print('Alt cobalt error:', e)
 
-          if not downloaded:
-              print('Trying Invidious API...')
-              import re
-              vid_match = re.search(r'(?:v=|/)([0-9A-Za-z_-]{11})', url)
-              if vid_match:
-                  vid_id = vid_match.group(1)
-                  instances = ['https://vid.puffyan.us', 'https://invidious.perennialte.ch']
-                  for inst in instances:
-                      try:
-                          r = requests.get(inst + '/api/v1/videos/' + vid_id, timeout=10)
-                          if r.status_code == 200:
-                              streams = r.json().get('adaptiveFormats', []) + r.json().get('formatStreams', [])
-                              for s in streams:
-                                  if s.get('container') == 'mp4' and s.get('quality') in ['720p', '360p', 'medium', 'hd720']:
-                                      su = s.get('url')
-                                      if su:
-                                          sr = requests.get(su, stream=True, timeout=300)
-                                          with open('downloaded_file.mp4', 'wb') as f:
-                                              for chunk in sr.iter_content(chunk_size=4*1024*1024):
-                                                  if chunk: f.write(chunk)
-                                          if os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 10000000:
-                                              downloaded = True
-                                              break
-                              if downloaded: break
-                      except Exception as e:
-                          print('Invidious error:', e)
+          if not os.path.exists('downloaded_file.mp4') or os.path.getsize('downloaded_file.mp4') < 10000000:
+              print('Trying yt-dlp with android client...')
+              import subprocess
+              subprocess.run(['yt-dlp', '--no-playlist', '--extractor-args', 'youtube:player_client=android', '-f', '18', '-o', 'downloaded_file.mp4', url])
 
-          if not downloaded:
-              print('Fallback: downloading test video')
+          if not os.path.exists('downloaded_file.mp4') or os.path.getsize('downloaded_file.mp4') < 1000000:
+              print('Fallback video...')
               import urllib.request
               urllib.request.urlretrieve('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4', 'downloaded_file.mp4')
 
-          size_mb = os.path.getsize('downloaded_file.mp4') / (1024 * 1024)
-          print('FINAL FILE SIZE:', size_mb, 'MB')
+          print('Final size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
           "
           
           FILE_SIZE=$(du -sh downloaded_file.mp4 2>/dev/null | awk '{print $1}')
@@ -115,7 +94,7 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "25"
+          DURATION: "30"
           FILE_SIZE: ${{ env.FILE_SIZE }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
