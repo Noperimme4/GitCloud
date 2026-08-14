@@ -17,19 +17,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg
-          pip install --upgrade yt-dlp requests
+          pip install --upgrade requests
 
-      - name: Smart Download
-        env:
-          TARGET_URL: ${{ github.event.client_payload.url }}
+      - name: Download Sample Video Safely
         run: |
-          echo "Creating guaranteed video file..."
           python3 -c "
           import urllib.request
-          # Download a reliable sample mp4 from test-videos.co.uk
           url = 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4'
+          print('Downloading sample video...')
           urllib.request.urlretrieve(url, 'downloaded_file.mp4')
-          print('File size:', __import__('os').path.getsize('downloaded_file.mp4'))
+          print('Done! Size:', __import__('os').path.getsize('downloaded_file.mp4'))
           "
           ls -la
 
