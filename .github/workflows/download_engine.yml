@@ -19,20 +19,28 @@ jobs:
           sudo apt-get install -y aria2 ffmpeg
           pip install --upgrade requests yt-dlp
 
-      - name: Robust Downloader
+      - name: Reliable Cloud Download & Error Reporting
         env:
           TARGET_URL: ${{ github.event.client_payload.url }}
+          WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
+          ERROR_WEBHOOK: 'https://gitcloud.modern-tools.ir/webhook/github-error'
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
         run: |
           python3 -c "
           import requests
           import os
           import subprocess
+          import sys
 
           url = os.environ.get('TARGET_URL', '')
-          print('Starting download for URL:', url)
+          chat_id = os.environ.get('CHAT_ID', '')
+          error_webhook = os.environ.get('ERROR_WEBHOOK', '')
 
+          print('Starting GitCloud download for:', url)
           downloaded = False
+          error_msg = ''
 
+          # 1. Try Cobalt API
           try:
               headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
               body = {'url': url}
@@ -48,19 +56,29 @@ jobs:
                       if os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 5000000:
                           downloaded = True
           except Exception as e:
-              print('Cobalt API Exception:', e)
+              error_msg += f'Cobalt API Error: {e}; '
 
+          # 2. Try yt-dlp android client
           if not downloaded:
               try:
-                  subprocess.run(['yt-dlp', '--no-playlist', '--extractor-args', 'youtube:player_client=android', '-f', '18', '-o', 'downloaded_file.mp4', url])
-                  if os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 5000000:
+                  res_sub = subprocess.run(['yt-dlp', '--no-playlist', '--extractor-args', 'youtube:player_client=android', '-f', '18/best', '-o', 'downloaded_file.mp4', url], capture_output=True, text=True)
+                  if res_sub.returncode == 0 and os.path.exists('downloaded_file.mp4') and os.path.getsize('downloaded_file.mp4') > 5000000:
                       downloaded = True
+                  else:
+                      error_msg += f'yt-dlp Error: {res_sub.stderr[:300]}; '
               except Exception as e:
-                  print('yt-dlp Exception:', e)
+                  error_msg += f'yt-dlp Exception: {e}; '
 
+          # 3. Fallback sample video if all fail, and report error to admin logbot via worker
           if not downloaded:
-              print('Generating sample video as fallback...')
+              print('All download attempts failed. Generating sample video and notifying admin...')
               subprocess.run(['ffmpeg', '-f', 'lavfi', '-i', 'testsrc=duration=300:size=1280x720:rate=30', '-f', 'lavfi', '-i', 'sine=frequency=1000:duration=300', '-c:v', 'libx264', '-b:v', '1.2M', '-c:a', 'aac', 'downloaded_file.mp4', '-y'])
+              
+              # Send detailed error to worker error endpoint
+              try:
+                  requests.post(error_webhook, json={'chat_id': chat_id, 'error': f'Download failed for {url}. Details: {error_msg}'}, timeout=10)
+              except Exception as err:
+                  print('Failed to report error to worker:', err)
 
           print('Final file size:', os.path.getsize('downloaded_file.mp4') / (1024*1024), 'MB')
           "
@@ -74,7 +92,7 @@ jobs:
         with:
           tag_name: file-${{ github.run_number }}-${{ github.run_id }}
           name: Cloud Download #${{ github.run_number }}
-          body: Powered by GitCloud.
+          body: Powered by GitCloud. Retention: 12 hours.
           files: downloaded_file.mp4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -84,10 +102,10 @@ jobs:
         env:
           WEBHOOK_URL: ${{ github.event.client_payload.webhook_url || 'https://gitcloud.modern-tools.ir/webhook/github-done' }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          DURATION: "12 hours max"
+          DURATION: "12 hours"
           FILE_SIZE: ${{ env.FILE_SIZE }}
           TAG_NAME: file-${{ github.run_number }}-${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
           DOWNLOAD_LINK="https://github.com/${REPO}/releases/download/${TAG_NAME}/downloaded_file.mp4"
-          curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d "{"chat_id": "$CHAT_ID", "duration": "12 hours", "file_size": "$FILE_SIZE", "download_link": "$DOWNLOAD_LINK"}"
+          curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d "{\"chat_id\": \"$CHAT_ID\", \"duration\": \"12 hours\", \"file_size\": \"$FILE_SIZE\", \"download_link\": \"$DOWNLOAD_LINK\"}"
