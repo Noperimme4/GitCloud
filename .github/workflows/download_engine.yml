@@ -31,12 +31,12 @@ jobs:
           if [[ "$URL" == magnet:* ]]; then
             echo "Detected magnet link, using aria2..."
             aria2c --bt-metadata-timeout=300 --bt-stop-timeout=300 --seed-time=0 -x 16 -s 16 -k 1M -o "downloaded_file.mp4" "$URL" || true
-          # Check if it's a direct link (http/https, not YouTube/social media)
+          # Check if it's a direct link (http/https, not YouTube/social media/pinterest)
           elif [[ "$URL" == http* ]] && [[ ! "$URL" =~ (youtube|youtu\.be|instagram|tiktok|twitter|x\.com|soundcloud|pinterest|pin\.it) ]]; then
             echo "Detected direct link, using aria2..."
             aria2c -x 16 -s 16 -k 1M -o "downloaded_file.mp4" "$URL" || true
           else
-            echo "Detected YouTube/social media, using yt-dlp..."
+            echo "Detected YouTube/Pinterest/social media, using yt-dlp..."
             yt-dlp --no-playlist --extractor-args "youtube:player_client=android" -f "18/best" -o "downloaded_file.mp4" "$URL" || true
           fi
           
